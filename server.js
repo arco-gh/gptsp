@@ -86,10 +86,28 @@ function normalizeForMatch(s) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, ''); // elimina tildes
 }
-function scoreChunk(chunk, query) {
+
+/* function scoreChunk(chunk, query) {
   const terms = normalizeForMatch(query).split(/\s+/).filter(Boolean);
   const lc = normalizeForMatch(chunk);
   return terms.reduce((acc, t) => acc + (lc.split(t).length - 1), 0);
+} */
+const STOP = new Set(['de','la','el','los','las','y','o','a','en','para','por','del','al','un','una','que','con','se','su','sus','lo','les','es','son']);
+function norm(s=''){ return s.toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // sin acentos
+  .replace(/[^\p{L}\p{N}\s]/gu,' ')               // limpia signos
+  .replace(/\s+/g,' ').trim(); }
+function tokens(s){ return norm(s).split(' ').filter(t => t.length>=3 && !STOP.has(t)); }
+
+function scoreChunk(text, query) {
+  const tt = tokens(text);
+  const qq = tokens(query);
+  if (!tt.length || !qq.length) return 0;
+  const set = new Set(tt);
+  let hits = 0;
+  for (const w of qq) if (set.has(w)) hits++;
+  const phraseBonus = norm(text).includes(norm(query)) ? 2 : 0;
+  return hits + phraseBonus; // score ≥1 implica coincidencia real
 }
 
 async function downloadContentById(itemId) {
@@ -290,3 +308,4 @@ app.post('/retrieve', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Proxy running on http://localhost:${PORT}`));
+
